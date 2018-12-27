@@ -1,0 +1,162 @@
+\documentclass[9pt,pagesize,DIV12,normalheadings,BCOR5mm,headexclude,footexclude]{scrbook} 
+\setlength{\paperwidth}{170mm} 
+\setlength{\paperheight}{220mm} 
+\usepackage{calc} 
+\typearea[current]{last} 
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage[colorinlistoftodos,prependcaption,textsize=tiny]{todonotes}
+
+
+\title{the wiz book -\\a complete guide to the wiz storage}
+\date{December 27, 2018}
+\author{Torben Schinke}
+
+
+\begin{document}
+
+\maketitle
+\tableofcontents
+
+\chapter{Preface}
+The idea of a robust, simple and scalable storage format superseeding the 
+lowest denomiator filesystems, fascinated me already 15 years ago, 
+however I never had the opportunity to actually start implementing such a 
+project. 
+When the time came, I started to design a paper based specification in 2015 
+which 
+performs well for deduplicating large files, nested directory trees and 
+continues snapshots. To solve the typical problems of a 'multi file based 
+document format' at work, I created a proprietary java based implementation 
+from it, called wiz - which is just the opposite of a git, similarities are 
+purely coincidental. For the original intention, it worked pretty well. 
+But as requirements changed, the performance for a lot of additional use 
+cases was disappointing. The main performance issues are caused by both, 
+inherent format decisions and the necessity of a complex virtual machine. 
+In practice, the latter caused also penalties on the probably most successful 
+mobile platform of our time. To solve all of these issues I started to design 
+an entirely new specification which addresses all of the new additional 
+scenarios (and even more). Hereafter this new specification is actually 
+'wiz version 3' or simply 'wiz'. Therefore the proprietary existing wiz 
+implementation is called 'legacy wiz' and is not only implemented in a 
+different language but also does a lot of things differently to improve 
+performance, storage usage, reliability and system complexity. 
+Today, the market for closed source commercial software libraries is nearly 
+dead and gaining money or finding acceptance is not easy. 
+Usually large companies dominate the market with a lot (but definity not all) 
+high quality products.
+
+\chapter{Requirements}
+In software development one distinguishes functional and non-functional 
+needs. A functional requirement (FR) describes what a system is supposed to 
+do on a certain input and involves typically some sort of calculation and 
+processing. In contrast to that, non-functional requirements (NFR) define 
+how a system behaves, e.g. in terms of response speed, memory consumption 
+or security. Another important aspect of NFRs is software quality and 
+maintainability. 
+
+\section{functional requirements}
+When following a comprehensive requirements analysis, one has to interview
+the target group or rather the customer. The result is a list of rated
+must- and should-be criteria. The following list is an opionated view of the
+requirements as we have identified them and only include the must-have needs.
+
+\subsection{FR-01: library}
+The wiz storage format is an embedded database and must be includable into 
+existing or new programs. The lowest common denomiator is a c-based ABI.
+Even if there is nothing like a \textit{standard} ABI, each relevant 
+operating system provides a c toolchain. Therefore the library must support
+the c calling conventions for static or shared libraries for at least
+the following architecture and operating system combinations:
+
+\begin{table}[htp]
+    \centering
+    \begin{tabular}{l|l}
+    \textbf{Operating System} & \textbf{Architecture}          \\ \hline
+    Linux                     & x86\_32, x86\_64, armv7, armv8 \\ \hline
+    Windows                   & x86\_32, x86\_64               \\ \hline
+    MacOS                     & x86\_64                        \\ \hline
+    Android                   & armv8                          \\ \hline
+    iOS                       & armv8                         
+    \end{tabular}
+    \caption{At least supported platforms}
+    \label{table:targets}
+\end{table}
+
+\subsection{FR-02: tooling}
+The \textit{wiz} command line tool is available for all 
+architecture and operating system combinations as defined 
+in table \ref{table:targets}. This tool allows at least to create, 
+modify and inspect \textit{wiz files} on a file
+level, just like the unix \textit{tar} or \textit{zip} programs.
+
+\todo{tbd}
+The man page and command line interface.
+
+\begin{lstlisting}[language=bash]
+    $ wiz create storage.wiz
+\end{lstlisting}
+
+\subsection{FR-03: format}
+The wiz storage format can also be called a \textit{repository}, a
+\textit{filesystem} or a \textit{database}. These terms can be used
+interchangeably. It supports the following modes of operation:
+
+\begin{itemize}
+    \item A single repository file on a conventional filesystem.
+    \item A single repository file with one or multiple external log files.
+    \item Multiple repository files with none, one or multiple external log 
+    files.
+    \item A raw disk file, with a maximum fixed size.
+    \item A simple remote storage for repository files like a ftp server.
+    These remotes do not necessarily support random access options or have
+    other limitations like maximum file sizes, limited file name lengths,
+    limited amount of entries per folder, no folder at all etc. 
+    \item Read-only variants of all noted above.
+\end{itemize}
+
+\todo{tbd}
+A cluster mode with a consensus algorithm. Note: RAFT is not a good one, 
+because it fails to scale. Probably something simple, like sharding with
+delayed replication. IMHO better to have something without guarantees here,
+than a system which is irrecoverable broken after e.g. a split brain error.
+
+\subsection{FR-04: transaction}
+Everything in wiz is a transaction. These transactions are always
+isolated and provide a high read throughput by using MVCC 
+(Multiversion Concurrency Control) implementations.
+A repository supports an arbritrary amount of sub volumes, sharing the 
+available space of the entire storage. A sub volume may optionally 
+support infinite snapshots, an infinite and 
+cryptographically verifiable history and deduplication.
+
+\todo{tbd}
+Deduplication can be a hard thing and has multiple trade ofs. 
+ZFS has only online-deduplication and requires 1GiB RAM per 1TiB of 
+storage to perform well. BTRFS only has offline-dedup but is hard
+to use and probably scales also badly.
+
+\section{non-functional requirements}
+
+\subsection{NFR-01: mount speed}
+The time to open a storage must be constant, independent of how many entries
+are contained or how large those entries are. This rule does not apply
+if the repository is located on a storage system without random access,
+like a simple ftp server.
+
+\subsection{NFR-02: open files}
+Open files are a very limited resource and are usually restricted to a few
+hundred per process. The library and command line must be capable of handling
+an arbritrary amount of open storage files by using a custom file handle 
+pooling.
+
+\subsection{NFR-03: memory consumption}
+Repositories can grow very large, right into the range of hundreds of terabytes.
+Also a process may open thousands of repositories at once. So the memory
+consumption must be defacto constant independent of how many repositories are
+open or how large a repository is or how large a single entry is. However 
+there must be options to increase the memory consumption to trade of resources
+against performance, to avoid hitting the I/O subsystem when required.
+
+
+\end{document}

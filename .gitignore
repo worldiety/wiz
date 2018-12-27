@@ -10,3 +10,8 @@
 
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
+book/the-wiz-book.aux
+book/the-wiz-book.fls
+book/the-wiz-book.log
+book/the-wiz-book.synctex.gz
+book/the-wiz-book.toc
