@@ -1,0 +1,84 @@
+{
+    "TypeDef": [
+        {
+            "type": "NodeType",
+            "Is": "Enum[VDevLabel, SUPER]"
+        },
+        {
+            "type": "Node",
+            "extends": "struct",
+            "fields": [
+                {
+                    "name": "Id",
+                    "type": "Discriminator"
+                }
+            ]
+        },
+        {
+            "type": "VDevLabel",
+            "extends": "Node",
+            "discriminator": 0,
+            "doc": "A VDevLabel is the first node in the first block. It contains all information related to the entire vdev, like the block size. A VDevLabel is usually not updated and not part of any copy-on-write semantics. When updated, it is entirely overwritten. For recovery purposes the VDevLabel is repeated at block 16, if there are more than 16 blocks available.",
+            "fields": [
+                {
+                    "name": "Magic",
+                    "type": "[8]byte{'w','i','z','b','l','o','c','k'}",
+                    "doc": "The 8 magic bytes identifying a vdev block file."
+                },
+                {
+                    "name": "Version",
+                    "type": "uint32{1}",
+                    "doc": "The version is a 4 byte integer. Future versions are always backwards compatible and only if new nodes are introduced this number will be increased and get incompatible with older versions."
+                },
+                {
+                    "name": "CustomMagic",
+                    "type": "[32]byte",
+                    "doc": "The custom magic flag is an arbitrary defined 32 byte sequence which can be used to specify a sub format. This should be considered to be a string in a reverse domain name notation, like 'de.worldiety.cardiety.project###'. You can send us your magic so that we keep a list of it."
+                },
+                {
+                    "name": "Id",
+                    "type": "[32]byte",
+                    "doc": "The unique 32 byte id of this vdev. Usually this Id should be generated with a secure random generator to ensure a high probability of a world wide uniqueness."
+                },
+                {
+                    "name": "Blocksize",
+                    "type": "uint32",
+                    "doc": "An unsigned 4 byte integer denoting the block size in bytes for this vdev. By default this is 4096 and should not be smaller than 512 and not larger than 128KiB, but your mileage may vary. Always use power of 2 values."
+                },
+                {
+                    "name": "HashAlgorithm",
+                    "type": "HashAlgorithm",
+                    "doc": "Within a vdev the HashAlgorithm is a one-size-fits all option."
+                }
+            ]
+        },
+        {
+            "type": "HashAlgorithm",
+            "extends": "enum{'SHA256','SHA512/256','SHA3-256'}",
+            "doc": "A HashAlgorithm is always 32 byte long but may be calculated by different algorithms. You should always choose a cryptographically strong algorithm."
+        },
+        {
+            "type": "Hash",
+            "extends": "[32]byte",
+            "doc": "A Hash is always 32 byte long but may be calculated by different algorithms."
+        },
+        {
+            "type": "TxReference",
+            "extends": "Node",
+            "discriminator": 2,
+            "doc": "A TxReference is used in the TxRing and refers to a transaction node."
+        },
+        {
+            "type": "TxRing",
+            "extends": "Node",
+            "discriminator": 1,
+            "doc": "The TxRing data structure is a ring buffer which refers to the latest valid transaction roots. The entry with the highest transaction number and a valid checksum points to the root of the valid state of the storage.",
+            "fields": [
+                {
+                    "Name": "Transactions",
+                    "type": "[16]"
+                }
+            ]
+        }
+    ]
+}
