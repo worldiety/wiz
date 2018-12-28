@@ -12,6 +12,7 @@
 \date{December 27, 2018}
 \author{Torben Schinke}
 
+\newcommand{\wiz}{WIZ }
 
 \begin{document}
 
@@ -134,7 +135,49 @@ cryptographically verifiable history and deduplication.
 Deduplication can be a hard thing and has multiple trade ofs. 
 ZFS has only online-deduplication and requires 1GiB RAM per 1TiB of 
 storage to perform well. BTRFS only has offline-dedup but is hard
-to use and probably scales also badly.
+to use and probably scales also badly memory wise.
+
+\subsection{FR-05: record size}
+The default record size for \wiz is 4096 bytes but a configurable record size is 
+allowed. The size must be a power of 2 and the minimal size is 512 bytes. 
+A small record size increases fragmentation but a larger record sizes 
+has less overhead and less 
+fragmentation at the cost of more memory and larger i/o operations. 
+For example, if you request 16 KiB but your record size is 1MiB you will
+saturate the bandwidth very early, however if you know that your payload
+is always larger than 1MiB you use a record size of 512, you will probably 
+saturate your IOPS earlier. Also records are loaded into memory, 
+especially when dealing with concurrency, and therefore increase the memory
+consumption.
+Please note that the record size is fixed per pool, which means
+that the record size cannot be changed after the creation of a repository.
+
+\subsection{FR-06: resilience}
+Resilience is a major design goal. The legacy \wiz has a packed format, using
+a variable node size up to a configurable maximum size. This is basically a
+good thing but has also the major drawbacks of an added overhead for length 
+parsing, efficient buffer recycling and most importantly when recovering
+from bit failures. As soon as a damage in the length header occurs, 
+it is impossible to calculate the beginning of the next node. To mitigate this
+issue one can insert boundary restart markers and checksums to skip 
+broken parts and find valid points. However all of these workarounds increase
+complexity and decrease performance. 
+However, as in legacy \wiz a node may have a variable size but it always fits 
+and aligns with a record. In a potential streaming scenario with an unknown 
+offset, a boundary node can be inserted to detect the correct record offset.
+
+The definition of a fixed record size and boundary nodes allows efficient
+recovery mechanisms. When using nodes with checksums, it will be very simple
+to restore nodes from an arbritrarily damaged storage. This certainly does
+not mean that actual stored data can be read, especially if the data is 
+fragmented accross multiple records. This can be improved a lot when using
+nodes with a block chain data structure instead of using offset pointers.
+In block chain data structures, the role of a pointer is replaced with 
+a unique hash of the referenced content. Using this technique and saving
+redundant nodes, makes it an easy task to recover 
+a damaged storage.
+
+
 
 \section{non-functional requirements}
 
