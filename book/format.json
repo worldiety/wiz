@@ -36,9 +36,14 @@
                     "doc": "The custom magic flag is an arbitrary defined 32 byte sequence which can be used to specify a sub format. This should be considered to be a string in a reverse domain name notation, like 'de.worldiety.cardiety.project###'. You can send us your magic so that we keep a list of it."
                 },
                 {
-                    "name": "Id",
+                    "name": "PoolId",
                     "type": "[32]byte",
-                    "doc": "The unique 32 byte id of this vdev. Usually this Id should be generated with a secure random generator to ensure a high probability of a world wide uniqueness."
+                    "doc": "The unique 32 byte id of the pool in which this vdev is. Usually this Id should be generated with a secure random generator to ensure a high probability of a world wide uniqueness."
+                },
+                {
+                    "name": "Id",
+                    "type": "uint32",
+                    "doc": "There may be 2^32 vdevs in a pool and each one must be unique to allow cross pointer references."
                 },
                 {
                     "name": "Blocksize",
@@ -66,7 +71,36 @@
             "type": "TxReference",
             "extends": "Node",
             "discriminator": 2,
-            "doc": "A TxReference is used in the TxRing and refers to a transaction node."
+            "doc": "A TxReference is used in the TxRing and refers to a transaction node.",
+            "fields":[
+                {
+                    "name":"Ptr",
+                    "type":"NPtr"
+                },
+                {
+                    "name":"Checksum",
+                    "type":"Hash('nptr'+Ptr)",
+                    "doc":"The checksum of this node."
+                }
+            ]
+        },
+        {
+            "type":"NPtr",
+            "extends":"struct",
+            "doc":"A NPtr is a pointer to a node within a vdev. The block number is Offset % blocksize. It does not make sense to split the offset into a block number because 2^64 can point to an offset at 16 EiB. In contrast to that, separating that hypothetically e.g. into a 2^32 number for addressing a block number at 4k blocksize, we could only point to 16 TiB + offset. If we take all vdevs into account (2^32 * 2^64), which is effectively a 96 bit pointer, allows us to address 65.536 YiB. In BTRFS the pointer including the object id is even larger, but wastes that space. TODO think about making this a 12 byte array to save the 4 byte padding of the 4dev id. This could save us 25% of memory.",
+            "fields":[
+                {
+                    "name":"VDev",
+                    "type":"uint32",
+                    "doc":"vdev denotes the id of the referenced vdev."
+                },
+                {
+                    "name":"Offset",
+                    "type":"uint64",
+                    "doc":"The absolute offset of the node within a vdev. We do not address blocks directly."
+                }
+            ]
+        
         },
         {
             "type": "TxRing",
@@ -76,7 +110,7 @@
             "fields": [
                 {
                     "Name": "Transactions",
-                    "type": "[16]"
+                    "type": "[16]TxReference"
                 }
             ]
         }
