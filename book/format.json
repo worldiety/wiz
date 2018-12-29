@@ -1,10 +1,6 @@
 {
     "TypeDef": [
         {
-            "type": "NodeType",
-            "Is": "Enum[VDevLabel, SUPER]"
-        },
-        {
             "type": "Node",
             "extends": "struct",
             "fields": [
